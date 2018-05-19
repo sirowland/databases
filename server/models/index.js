@@ -62,7 +62,7 @@ module.exports = {
         })
 
       }).catch(function(err){
-        res.status(500).send(`something broke: ${err}`);
+        // res.status(500).send(`something broke: ${err}`);
         throw err;
       })
     } 
