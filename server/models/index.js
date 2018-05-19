@@ -3,86 +3,95 @@ var db = require('../db');
 
 module.exports = {
   messages: {
-    get: function () {}, // a function which produces all the messages
+    get: function (callback) {
+      //put together in a data structure
+      var connection;
+      
+      db.then(function(conn) {
+        connection = conn;
+        return connection.query(`SELECT username, text, roomname FROM messages 
+          JOIN rooms
+          ON messages.room_id = rooms.id
+          JOIN users
+          ON messages.user_id = users.id
+          `)
+      }).then(function(rows){
+        console.log('ALL MESSAGES ROWS: ', rows);
+        callback(rows);
+        connection.end()
+      })
+    },
     post: function (msg, callback) {
-      console.log('MESSAGE IN MODEL', msg);
       
       var connection;
       var user_id;
       var room_id;
       let {username, roomname, text} = msg;
+      console.log(username, roomname, text);
       
       db.then(function(conn) {
-        // get connection
         connection = conn;
-        // look in db for username
         return connection.query(`SELECT id FROM users WHERE username IN ('${username}')`);
       }).then(function(rows){
-        console.log('User ID:', rows[0].id)
-        // if username exists...
-        if (rows[0].id) {
-          // set id
+        if (rows.length) {
+          return rows;
         } else {
-          // create user 
-          // set id
+          return connection.query( `INSERT INTO users (username) VALUES ('${username}');`)
+          .then(function(){
+            return connection.query( `SELECT id FROM users WHERE username LIKE '${username}';`);
+          });
         }
-      }).then(function(doesntmatter){
-        // look in db for roomname
+      }).then(function(rows){
+        user_id = rows[0].id;
         return connection.query(`SELECT id FROM rooms WHERE roomname IN ('${roomname}')`);
       }).then(function(rows){
-        console.log('Room ID:', rows[0].id)
-        // if roomname exists...
-        if (rows[0].id) {
-          // set id
+        if (rows.length) {
+          return rows;
         } else {
-          // create room 
-          // set id
+          return connection.query( `INSERT INTO rooms (roomname) VALUES ('${roomname}');`)
+          .then(function(){
+            return connection.query( `SELECT id FROM rooms WHERE roomname LIKE '${roomname}';`);
+          });
         }
-      }).then(function(doesntmatter){
-        connection.query(`INSERT INTO messages (text, room_id, user_id) VALUES ('${text}', ${room_id}, ${user_id})`);
-        connection.end()
-        return;
+      }).then(function(rows){
+        room_id = rows[0].id;
+        return connection.query(`INSERT INTO messages (text, room_id, user_id) VALUES ('${text}', ${room_id}, ${user_id})`)
+        .then(function(){
+          connection.end();
+          callback();
+        })
+
       }).catch(function(err){
-        throw err
+        res.status(500).send(`something broke: ${err}`);
+        throw err;
       })
-      
-      
-      
-      // db.query(`SELECT id FROM users WHERE username IN ('${username}')`,
-      //     function(err, res) {
-      //       if (err) {
-      //         console.log(err);
-      //       } else {
-      //         if (!res.length) {
-      //           db.query(`INSERT INTO users (username) VALUES ('${username}')`
-      //             , function(err, res) {
-      //               err ? console.log(err) : console.log(res);
-      //               db.end();
-      //             });
-      //         }
-      //       }
-            
-      //     }
-      //   );
-      
-      // db.query(`INSERT INTO messages 
-      //   (text, room_id, user_id) 
-      //   VALUES ('${text}',
-      //    NULL, NULL)`, function(err) {
-      //   if (err) {
-      //     throw err;
-      //   } else {
-      //     // callback();
-      //   }
-      // });
-      
-    } // a function which can be used to insert a message into the database
+    } 
   },
 
   users: {
     // Ditto as above.
     get: function () {},
-    post: function () {}
+    post: function (username, callback) {
+      var connection;
+      var user_id;
+      console.log('USERS POST USERNAME: ', username);
+      
+      db.then(function(conn) {
+        connection = conn;
+        return connection.query(`SELECT id FROM users WHERE username IN ('${username}')`);
+      }).then(function(rows){
+        if (rows.length) {
+          return rows;
+        } else {
+          return connection.query( `INSERT INTO users (username) VALUES ('${username}');`)
+          .then(function(){
+            return connection.query( `SELECT id FROM users WHERE username LIKE '${username}';`);
+          });
+        }
+      }).catch(function(err){
+        
+      });
+    }
   }
 };
 
